@@ -1292,8 +1292,23 @@ bool NodeGraph::CheckDependencies( Node * nodeToBuild, const Dependencies & depe
         ASSERT( workingDir.Find( NATIVE_DOUBLE_SLASH ) == nullptr ); // redundant slashes removed
 
         // build the start of the path
-        cleanPath = workingDir;
-        cleanPath += NATIVE_SLASH;
+        #if defined( __WINDOWS__ )
+            // On windows, a single slash represents relative to the current drive root
+            if ( name.BeginsWith( NATIVE_SLASH ) )
+            {
+                cleanPath = AString( "" );
+                cleanPath += workingDir.Get()[0];
+                cleanPath += ":";
+            }
+            else
+            {
+                cleanPath = workingDir;
+                cleanPath += NATIVE_SLASH;
+            }
+        #else
+            cleanPath = workingDir;
+            cleanPath += NATIVE_SLASH;
+        #endif
 
         // concatenate
         uint32_t len = cleanPath.GetLength();
@@ -1319,17 +1334,41 @@ bool NodeGraph::CheckDependencies( Node * nodeToBuild, const Dependencies & depe
     const char * src = name.Get();
     const char * const srcEnd = name.GetEnd();
 
+    #if defined( __WINDOWS__ )
+        if ( name.BeginsWith( "\\\\?\\" ) )
+        {
+            // With *exactly* this path start (before altering slashes), the path should
+            // be left entirely as-is, and not be normalized/cleaned.
+            while ( src < srcEnd ) { *dst++ = *src++; }
+            return;
+        }
+    #endif
+
     // clean slashes
     char lastChar = NATIVE_SLASH; // consider first item to follow a path (so "..\file.dat" works)
-    #if defined( __WINDOWS__ )
-        while ( *src == NATIVE_SLASH || *src == OTHER_SLASH ) { ++src; } // strip leading slashes
-    #endif
 
     const char * lowestRemovableChar = cleanPath.Get();
     if ( isFullPath )
     {
         #if defined( __WINDOWS__ )
-            lowestRemovableChar += 3; // e.g. "c:\"
+            // Two types of Windows full paths: \\unc\something, and C:\something
+            if ( name.BeginsWith( NATIVE_DOUBLE_SLASH ) )
+            {
+                lowestRemovableChar += 2;
+                const char * afterSlash = src + 2;
+                while ( src < afterSlash ) {
+                    *dst++ = *src++; // Make sure the initial double slash doesn't get replaced
+                }
+                if ( *src == '.' )
+                {
+                    // Additionally, \\.\ is a valid path type that should not be removed.
+                    *dst++ = *src++;
+                }
+            }
+            else
+            {
+                lowestRemovableChar += 3; // e.g. "c:\"
+            }
         #else
             lowestRemovableChar += 1; // e.g. "/"
         #endif

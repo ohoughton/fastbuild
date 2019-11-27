@@ -427,7 +427,10 @@ void TestGraph::TestCleanPath() const
     // edge cases/regressions
     #if defined( __WINDOWS__ )
         // - There was a bug with folders beginning with a slash on Windows
-        CHECK( "\\folder\\file",    "C:\\Windows\\System32\\folder\\file",      "" )
+        CHECK( "\\folder\\file",                "C:\\folder\\file",              "" )
+        CHECK( "\\\\?\\C:\\no.\\normalization", "\\\\?\\C:\\no.\\normalization", "" )
+        CHECK( "\\\\server\\share\\.\\file",    "\\\\server\\share\\file",       "" )
+        CHECK( "\\\\.\\C:\\using\\.\\device",   "\\\\.\\C:\\using\\device",      "" )
     #endif
 
     #undef CHECK
