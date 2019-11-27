@@ -428,9 +428,11 @@ void TestGraph::TestCleanPath() const
     #if defined( __WINDOWS__ )
         // - There was a bug with folders beginning with a slash on Windows
         CHECK( "\\folder\\file",                "C:\\folder\\file",              "" )
+        // - Folders on Windows starting with \\?\ should not be altered in any way
         CHECK( "\\\\?\\C:\\no.\\normalization", "\\\\?\\C:\\no.\\normalization", "" )
         CHECK( "\\\\server\\share\\.\\file",    "\\\\server\\share\\file",       "" )
         CHECK( "\\\\.\\C:\\using\\.\\device",   "\\\\.\\C:\\using\\device",      "" )
+        CHECK( "//./C:/using/device",           "\\\\.\\C:\\using\\device",      "" )
     #endif
 
     #undef CHECK

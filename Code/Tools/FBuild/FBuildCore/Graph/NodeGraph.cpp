@@ -1294,7 +1294,7 @@ bool NodeGraph::CheckDependencies( Node * nodeToBuild, const Dependencies & depe
         // build the start of the path
         #if defined( __WINDOWS__ )
             // On windows, a single slash represents relative to the current drive root
-            if ( name.BeginsWith( NATIVE_SLASH ) )
+            if ( name.BeginsWith( NATIVE_SLASH ) || name.BeginsWith( OTHER_SLASH ) )
             {
                 cleanPath = AString( "" );
                 cleanPath += workingDir.Get()[0];
@@ -1352,17 +1352,37 @@ bool NodeGraph::CheckDependencies( Node * nodeToBuild, const Dependencies & depe
     {
         #if defined( __WINDOWS__ )
             // Two types of Windows full paths: \\unc\something, and C:\something
-            if ( name.BeginsWith( NATIVE_DOUBLE_SLASH ) )
+            if ( name.BeginsWith( NATIVE_DOUBLE_SLASH ) || name.BeginsWith( OTHER_DOUBLE_SLASH ) )
             {
-                lowestRemovableChar += 2;
-                const char * afterSlash = src + 2;
-                while ( src < afterSlash ) {
-                    *dst++ = *src++; // Make sure the initial double slash doesn't get replaced
-                }
-                if ( *src == '.' )
+                const char * afterNative = name.Find( NATIVE_SLASH, src + 2, srcEnd );
+                const char * afterOther = name.Find( OTHER_SLASH, src + 2, srcEnd );
+                // There must be at least one slash after the initial two for this to be a valid path
+                ASSERT( afterNative != nullptr || afterOther != nullptr );
+                // Choose the earliest slash that exists.
+                const char * afterSlash;
+                if ( ( afterNative != nullptr && afterOther != nullptr && afterNative < afterOther )
+                        || afterOther == nullptr )
                 {
-                    // Additionally, \\.\ is a valid path type that should not be removed.
-                    *dst++ = *src++;
+                    afterSlash = afterNative;
+                }
+                else
+                {
+                    afterSlash = afterOther;
+                }
+
+                lowestRemovableChar += ( afterSlash - src );
+                // Copy the qualifier part of the path here, so things like the double slash and "."
+                // are not replaced.
+                while ( src <= afterSlash ) {
+                    if ( *src != OTHER_SLASH )
+                    {
+                        *dst++ = *src++;
+                    }
+                    else
+                    {
+                        *dst++ = NATIVE_SLASH;
+                        src++;
+                    }
                 }
             }
             else
